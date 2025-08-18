@@ -1,4 +1,3 @@
-using Autofac;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -9,7 +8,6 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using Microsoft.Extensions.Logging;
-using NLog;
 using Janus.Services;
 
 namespace Janus.ViewModels
@@ -19,7 +17,6 @@ namespace Janus.ViewModels
         public event PropertyChangedEventHandler? PropertyChanged;
         public event EventHandler<UutViewModel>? OnCloseTest;
 
-        private readonly ILifetimeScope _scope;
         private readonly ITestRunnerService _testRunnerService;
         private readonly ILogger<UutViewModel> _logger;
         private readonly CancellationTokenSource _cancellationTokenSource = new();
@@ -27,32 +24,28 @@ namespace Janus.ViewModels
         private readonly Timer _timer;
         private Task? _testTask;
 
-        public UutViewModel(string serialNumber, string operatorName, string testDescription, string drawer, ILifetimeScope scope, ILogger<UutViewModel> logger)
+        public UutViewModel(ITestRunnerService testRunnerService, ILogger<UutViewModel> logger)
         {
-            SerialNumber = serialNumber;
-            OperatorName = operatorName;
-            TestDescription = testDescription;
-            Drawer = drawer;
             Status = "Running";
             SerialLog = new ObservableCollection<string>();
             GeneralLog = new ObservableCollection<string>();
             CorrelationId = Guid.NewGuid();
 
             _logger = logger;
-            ObservableCollectionTarget.LogReceived += OnLogReceived;
-
-            // Create a new scope for this UUT's test
-            _scope = scope.BeginLifetimeScope();
-            _testRunnerService = _scope.Resolve<ITestRunnerService>();
+            _testRunnerService = testRunnerService;
 
             StopTestCommand = new RelayCommand(StopTest);
             CloseCommand = new RelayCommand(CloseTest);
 
+            ObservableLogger.LogReceived += OnLogReceived;
+
             _logger.LogInformation("UUT ViewModel created for {SerialNumber}", SerialNumber);
             _testTask = Task.Run(() =>
             {
-                MappedDiagnosticsLogicalContext.Set("CorrelationId", CorrelationId);
-                return _testRunnerService.RunTestAsync(this, _cancellationTokenSource.Token);
+                using (_logger.BeginScope(new Dictionary<string, object> { ["CorrelationId"] = CorrelationId }))
+                {
+                    return _testRunnerService.RunTestAsync(this, _cancellationTokenSource.Token);
+                }
             }, _cancellationTokenSource.Token);
             _stopwatch.Start();
             _timer = new Timer(_ => OnPropertyChanged(nameof(ElapsedTime)), null, 0, 100);
@@ -65,11 +58,11 @@ namespace Janus.ViewModels
             Application.Current.Dispatcher.Invoke(() => GeneralLog.Add(e.Message));
         }
 
-        public Guid CorrelationId { get; }
-        public string SerialNumber { get; }
-        public string OperatorName { get; }
-        public string TestDescription { get; }
-        public string Drawer { get; }
+        public Guid CorrelationId { get; set; }
+        public string SerialNumber { get; set; }
+        public string OperatorName { get; set; }
+        public string TestDescription { get; set; }
+        public int Drawer { get; set; }
         public string Header => $"UUT: {SerialNumber}";
         public bool IsClosable => true;
         public TimeSpan ElapsedTime => _stopwatch.Elapsed;
@@ -171,10 +164,9 @@ namespace Janus.ViewModels
 
         public void Dispose()
         {
-            ObservableCollectionTarget.LogReceived -= OnLogReceived;
+            ObservableLogger.LogReceived -= OnLogReceived;
             _cancellationTokenSource.Cancel();
             _timer.Dispose();
-            _scope.Dispose();
         }
     }
 }

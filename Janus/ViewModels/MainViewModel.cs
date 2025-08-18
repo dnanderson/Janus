@@ -1,21 +1,22 @@
-using Autofac;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using Autofac.Core;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Janus.ViewModels
 {
     public class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         public event PropertyChangedEventHandler? PropertyChanged;
-        private readonly ILifetimeScope _scope;
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly UutViewModelFactory _uutViewModelFactory;
 
-        public MainViewModel(HomeViewModel homeViewModel, ILifetimeScope scope)
+        public MainViewModel(HomeViewModel homeViewModel, IServiceScopeFactory scopeFactory, UutViewModelFactory uutViewModelFactory)
         {
-            _scope = scope;
+            _scopeFactory = scopeFactory;
+            _uutViewModelFactory = uutViewModelFactory;
 
             RunningUuts = new ObservableCollection<UutViewModel>();
             homeViewModel.RunningUuts = RunningUuts;
@@ -30,11 +31,8 @@ namespace Janus.ViewModels
 
         private void OnBeginTest(object? sender, BeginTestEventArgs e)
         {
-            var uutViewModel = _scope.Resolve<UutViewModel>(
-                new NamedParameter("serialNumber", e.SerialNumber),
-                new NamedParameter("operatorName", e.OperatorName),
-                new NamedParameter("testDescription", e.TestDescription),
-                new NamedParameter("drawer", e.Drawer));
+            var uutScope = _scopeFactory.CreateScope();
+            var uutViewModel = _uutViewModelFactory(e.SerialNumber, e.OperatorName, e.TestDescription, e.Drawer);
 
             uutViewModel.OnCloseTest += OnUutRequestClose;
             Tabs.Add(uutViewModel);
@@ -75,7 +73,6 @@ namespace Janus.ViewModels
             {
                 tab.Dispose();
             }
-            _scope.Dispose();
         }
     }
 }
