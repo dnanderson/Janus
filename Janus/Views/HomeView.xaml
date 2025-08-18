@@ -1,0 +1,81 @@
+<UserControl x:Class="Janus.Views.HomeView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:Janus.Views"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="800">
+    <ScrollViewer>
+        <Grid Margin="5">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <GroupBox Header="UUT Information" Grid.Row="0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="UUT Serial Number:" Grid.Row="0" Grid.Column="0" Margin="5" VerticalAlignment="Center" />
+                    <TextBox Text="{Binding UutSerialNumber, UpdateSourceTrigger=PropertyChanged}" Grid.Row="0" Grid.Column="1" Margin="5" />
+
+                    <TextBlock Text="Operator Name:" Grid.Row="1" Grid.Column="0" Margin="5" VerticalAlignment="Center" />
+                    <TextBox Text="{Binding OperatorName, UpdateSourceTrigger=PropertyChanged}" Grid.Row="1" Grid.Column="1" Margin="5" />
+
+                    <TextBlock Text="Test Description:" Grid.Row="2" Grid.Column="0" Margin="5" VerticalAlignment="Center" />
+                    <TextBox Text="{Binding TestDescription, UpdateSourceTrigger=PropertyChanged}" Grid.Row="2" Grid.Column="1" Margin="5" />
+
+                    <TextBlock Text="Drawer:" Grid.Row="3" Grid.Column="0" Margin="5" VerticalAlignment="Center" />
+                    <TextBox Text="{Binding Drawer, UpdateSourceTrigger=PropertyChanged}" Grid.Row="3" Grid.Column="1" Margin="5" />
+
+                    <Button Content="Begin Test" Command="{Binding BeginTestCommand}" Grid.Row="4" Grid.Column="1" Margin="5" />
+                </Grid>
+            </GroupBox>
+
+            <GroupBox Header="UPS Status" Grid.Row="2">
+                <StackPanel DataContext="{Binding UpsStatus}">
+                    <TextBlock Text="{Binding StateOfCharge, StringFormat='State of Charge: {0:F1}%'}" />
+                    <TextBlock Text="{Binding BatteryAgeDays, StringFormat='Battery Age: {0} days'}" />
+                    <TextBlock Text="{Binding NextReplacementDate, StringFormat='Next Replacement: {0:d}'}" />
+                    <TextBlock Text="{Binding InputVoltage, StringFormat='Input: {0:F1} V'}" />
+                    <TextBlock Text="{Binding OutputVoltage, StringFormat='Output: {0:F1} V'}" />
+                    <TextBlock Text="{Binding LastSelfTestResult, StringFormat='Last Self-Test: {0}'}" />
+                    <Button Content="Run UPS Self-Test" Command="{Binding StartUpsSelfTestCommand}" />
+                </StackPanel>
+            </GroupBox>
+
+
+
+            <GroupBox Header="Running Tests" Grid.Row="4">
+                <ItemsControl ItemsSource="{Binding RunningUuts}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border BorderBrush="Gray" BorderThickness="1" Margin="2" Padding="5">
+                                <StackPanel>
+                                    <TextBlock FontWeight="Bold" Text="{Binding SerialNumber, StringFormat='UUT: {0}'}" />
+                                    <TextBlock Text="{Binding Drawer, StringFormat='Drawer: {0}'}" />
+                                    <TextBlock Text="{Binding Status}" />
+                                    <TextBlock Text="{Binding ElapsedTime, StringFormat='Running for: {0:hh\\:mm\\:ss}'}" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </GroupBox>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

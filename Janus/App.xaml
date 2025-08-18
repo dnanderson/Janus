@@ -1,0 +1,15 @@
+<Application x:Class="Janus.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:Janus"
+             xmlns:viewModels="clr-namespace:Janus.ViewModels"
+             xmlns:views="clr-namespace:Janus.Views">
+    <Application.Resources>
+        <DataTemplate DataType="{x:Type viewModels:HomeViewModel}">
+            <views:HomeView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewModels:UutViewModel}">
+            <views:UutView />
+        </DataTemplate>
+    </Application.Resources>
+</Application>
