@@ -88,7 +88,10 @@ namespace Janus.ViewModels
         private void BeginTest()
         {
             _logger.LogInformation("Begin test clicked for UUT {UutSerialNumber}", UutSerialNumber);
-            OnBeginTest?.Invoke(this, new BeginTestEventArgs(UutSerialNumber!, OperatorName!, TestDescription!, Drawer!));
+            if (int.TryParse(Drawer, out var drawerInt))
+            {
+                OnBeginTest?.Invoke(this, new BeginTestEventArgs(UutSerialNumber!, OperatorName!, TestDescription!, drawerInt));
+            }
         }
 
         private bool CanBeginTest()

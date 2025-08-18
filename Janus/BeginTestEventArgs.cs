@@ -7,9 +7,9 @@ namespace Janus
         public string SerialNumber { get; }
         public string OperatorName { get; }
         public string TestDescription { get; }
-        public string Drawer { get; }
+        public int Drawer { get; }
 
-        public BeginTestEventArgs(string serialNumber, string operatorName, string testDescription, string drawer)
+        public BeginTestEventArgs(string serialNumber, string operatorName, string testDescription, int drawer)
         {
             SerialNumber = serialNumber;
             OperatorName = operatorName;
