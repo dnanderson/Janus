@@ -3,13 +3,13 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Janus.ViewModels
 {
-    public class MainViewModel : INotifyPropertyChanged, IDisposable
+    public partial class MainViewModel : ObservableObject, IDisposable
     {
-        public event PropertyChangedEventHandler? PropertyChanged;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly UutViewModelFactory _uutViewModelFactory;
 
@@ -26,7 +26,7 @@ namespace Janus.ViewModels
             {
                 homeViewModel
             };
-            SelectedTab = homeViewModel;
+            _selectedTab = homeViewModel;
         }
 
         private void OnBeginTest(object? sender, BeginTestEventArgs e)
@@ -51,21 +51,8 @@ namespace Janus.ViewModels
         public ObservableCollection<object> Tabs { get; }
         public ObservableCollection<UutViewModel> RunningUuts { get; }
 
+        [ObservableProperty]
         private object _selectedTab;
-        public object SelectedTab
-        {
-            get => _selectedTab;
-            set
-            {
-                _selectedTab = value;
-                OnPropertyChanged();
-            }
-        }
-
-        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
 
         public void Dispose()
         {
