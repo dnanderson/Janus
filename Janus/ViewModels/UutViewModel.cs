@@ -7,14 +7,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Janus.Services;
 
 namespace Janus.ViewModels
 {
-    public class UutViewModel : INotifyPropertyChanged, IDisposable
+    public partial class UutViewModel : ObservableObject, IDisposable
     {
-        public event PropertyChangedEventHandler? PropertyChanged;
         public event EventHandler<UutViewModel>? OnCloseTest;
 
         private readonly ITestRunnerService _testRunnerService;
@@ -26,16 +27,13 @@ namespace Janus.ViewModels
 
         public UutViewModel(ITestRunnerService testRunnerService, ILogger<UutViewModel> logger)
         {
-            Status = "Running";
+            _status = "Running";
             SerialLog = new ObservableCollection<string>();
             GeneralLog = new ObservableCollection<string>();
             CorrelationId = Guid.NewGuid();
 
             _logger = logger;
             _testRunnerService = testRunnerService;
-
-            StopTestCommand = new RelayCommand(StopTest);
-            CloseCommand = new RelayCommand(CloseTest);
 
             ObservableLogger.LogReceived += OnLogReceived;
 
@@ -81,54 +79,19 @@ namespace Janus.ViewModels
             Application.Current.Dispatcher.Invoke(() => GeneralLog.Add(message));
         }
 
+        [ObservableProperty]
         private string _status;
-        public string Status
-        {
-            get => _status;
-            set
-            {
-                if (_status == value) return;
-                _status = value;
-                OnPropertyChanged();
-            }
-        }
 
+        [ObservableProperty]
         private double _voltage;
-        public double Voltage
-        {
-            get => _voltage;
-            set
-            {
-                _voltage = value;
-                OnPropertyChanged();
-            }
-        }
 
+        [ObservableProperty]
         private double _temperature;
-        public double Temperature
-        {
-            get => _temperature;
-            set
-            {
-                _temperature = value;
-                OnPropertyChanged();
-            }
-        }
 
+        [ObservableProperty]
         private double _current;
-        public double Current
-        {
-            get => _current;
-            set
-            {
-                _current = value;
-                OnPropertyChanged();
-            }
-        }
 
-        public ICommand StopTestCommand { get; }
-        public ICommand CloseCommand { get; }
-
+        [RelayCommand]
         private void StopTest()
         {
             if (_cancellationTokenSource.IsCancellationRequested) return;
@@ -140,26 +103,12 @@ namespace Janus.ViewModels
             _stopwatch.Stop();
         }
 
+        [RelayCommand]
         private void CloseTest()
         {
             _logger.LogInformation("Closing test for UUT {SerialNumber}", SerialNumber);
             StopTest();
             OnCloseTest?.Invoke(this, this);
-        }
-
-        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-        {
-            if (Application.Current.Dispatcher.CheckAccess())
-            {
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-            }
-            else
-            {
-                Application.Current.Dispatcher.InvokeAsync(() =>
-                {
-                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-                });
-            }
         }
 
         public void Dispose()
