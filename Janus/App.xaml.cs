@@ -1,6 +1,9 @@
+using Janus.Models.Configuration;
 using Janus.Services;
 using Janus.ViewModels;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Windows;
 
@@ -8,23 +11,34 @@ namespace Janus
 {
     public partial class App : Application
     {
-        public static ServiceProvider? ServiceProvider { get; private set; }
+        public static IHost? AppHost { get; private set; }
 
-        protected override void OnStartup(StartupEventArgs e)
+        public App()
         {
-            base.OnStartup(e);
-
-            var serviceCollection = new ServiceCollection();
-            ConfigureServices(serviceCollection);
-
-            ServiceProvider = serviceCollection.BuildServiceProvider();
-
-            var mainWindow = ServiceProvider.GetRequiredService<MainWindow>();
-            mainWindow.Show();
+            AppHost = Host.CreateDefaultBuilder()
+                .ConfigureServices((hostContext, services) =>
+                {
+                    ConfigureServices(services, hostContext.Configuration);
+                })
+                .Build();
         }
 
-        private void ConfigureServices(IServiceCollection services)
+        protected override async void OnStartup(StartupEventArgs e)
         {
+            await AppHost!.StartAsync();
+
+            var mainWindow = AppHost.Services.GetRequiredService<MainWindow>();
+            mainWindow.Show();
+
+            base.OnStartup(e);
+        }
+
+        private void ConfigureServices(IServiceCollection services, IConfiguration configuration)
+        {
+            services.Configure<DatabaseSettings>(configuration.GetSection("Database"));
+            services.Configure<SerialServiceSettings>(configuration.GetSection("SerialService"));
+            services.Configure<HardwareSettings>(configuration);
+
             services.AddLogging(builder =>
             {
                 builder.AddConsole();
@@ -33,7 +47,20 @@ namespace Janus
             });
 
             // Register Services
-            services.AddTransient<INi845xService, MockNi845xService>();
+            var serialServiceSettings = configuration.GetSection("SerialService").Get<SerialServiceSettings>();
+            switch (serialServiceSettings?.Type)
+            {
+                case "Ni845x":
+                    services.AddTransient<ISerialService, Ni845xService>();
+                    break;
+                case "FTDI":
+                    services.AddTransient<ISerialService, FtdiService>();
+                    break;
+                default:
+                    // Default to Ni845x or throw an exception
+                    services.AddTransient<ISerialService, Ni845xService>();
+                    break;
+            }
             services.AddTransient<IDaqService, MockDaqService>();
             services.AddTransient<ISmuService, MockSmuService>();
             services.AddSingleton<IUpsService, MockUpsService>();
@@ -44,7 +71,7 @@ namespace Janus
             services.AddTransient<HomeViewModel>();
             services.AddTransient<UutViewModel>();
 
-            services.AddSingleton<UutViewModelFactory>(provider =>
+            services.AddTransient<UutViewModelFactory>(provider =>
                 (serialNumber, operatorName, testDescription, drawer) =>
                 {
                     var uutViewModel = provider.GetRequiredService<UutViewModel>();
@@ -57,6 +84,12 @@ namespace Janus
 
             // Register Views
             services.AddSingleton<MainWindow>();
+        }
+
+        protected override async void OnExit(ExitEventArgs e)
+        {
+            await AppHost!.StopAsync();
+            base.OnExit(e);
         }
     }
 }

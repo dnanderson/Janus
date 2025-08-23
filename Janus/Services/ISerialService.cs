@@ -1,6 +1,6 @@
 namespace Janus.Services
 {
-    public interface INi845xService
+    public interface ISerialService
     {
         string SendReceive(string message);
     }

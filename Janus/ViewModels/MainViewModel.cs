@@ -29,10 +29,15 @@ namespace Janus.ViewModels
             _selectedTab = homeViewModel;
         }
 
+        private readonly Dictionary<UutViewModel, IServiceScope> _uutScopes = new();
+
         private void OnBeginTest(object? sender, BeginTestEventArgs e)
         {
             var uutScope = _scopeFactory.CreateScope();
-            var uutViewModel = _uutViewModelFactory(e.SerialNumber, e.OperatorName, e.TestDescription, e.Drawer);
+            var uutViewModelFactory = uutScope.ServiceProvider.GetRequiredService<UutViewModelFactory>();
+            var uutViewModel = uutViewModelFactory(e.SerialNumber, e.OperatorName, e.TestDescription, e.Drawer);
+
+            _uutScopes.Add(uutViewModel, uutScope);
 
             uutViewModel.OnCloseTest += OnUutRequestClose;
             Tabs.Add(uutViewModel);
@@ -45,6 +50,12 @@ namespace Janus.ViewModels
             uutViewModel.OnCloseTest -= OnUutRequestClose;
             Tabs.Remove(uutViewModel);
             RunningUuts.Remove(uutViewModel);
+
+            if (_uutScopes.Remove(uutViewModel, out var uutScope))
+            {
+                uutScope.Dispose();
+            }
+
             uutViewModel.Dispose();
         }
 
