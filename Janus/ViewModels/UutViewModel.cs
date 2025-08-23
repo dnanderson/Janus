@@ -4,10 +4,9 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using System.Reactive.Linq;
 using System.Threading.Tasks;
-using Serilog.Events;
 using System.Windows;
+using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -24,10 +23,9 @@ namespace Janus.ViewModels
         private readonly CancellationTokenSource _cancellationTokenSource = new();
         private readonly Stopwatch _stopwatch = new();
         private readonly Timer _timer;
-        private readonly IDisposable _logEventSubscription;
         private Task? _testTask;
 
-        public UutViewModel(ITestRunnerService testRunnerService, ILogger<UutViewModel> logger, SerilogObserverService serilogObserverService)
+        public UutViewModel(ITestRunnerService testRunnerService, ILogger<UutViewModel> logger)
         {
             _status = "Running";
             SerialLog = new ObservableCollection<string>();
@@ -37,34 +35,25 @@ namespace Janus.ViewModels
             _logger = logger;
             _testRunnerService = testRunnerService;
 
-            _logEventSubscription = serilogObserverService.LogEvents
-                .Where(logEvent =>
-                {
-                    if (logEvent.Properties.TryGetValue("CorrelationId", out var correlationIdValue) &&
-                        correlationIdValue is ScalarValue scalarValue &&
-                        scalarValue.Value is string correlationIdString)
-                    {
-                        return correlationIdString == CorrelationId.ToString();
-                    }
-                    return false;
-                })
-                .Select(logEvent => logEvent.RenderMessage())
-                .Subscribe(message =>
-                {
-                    Application.Current.Dispatcher.Invoke(() => GeneralLog.Add(message));
-                });
-
+            ObservableLogger.LogReceived += OnLogReceived;
 
             _logger.LogInformation("UUT ViewModel created for {SerialNumber}", SerialNumber);
             _testTask = Task.Run(() =>
             {
-                using (_logger.BeginScope(new Dictionary<string, object> { ["CorrelationId"] = CorrelationId.ToString() }))
+                using (_logger.BeginScope(new Dictionary<string, object> { ["CorrelationId"] = CorrelationId }))
                 {
                     return _testRunnerService.RunTestAsync(this, _cancellationTokenSource.Token);
                 }
             }, _cancellationTokenSource.Token);
             _stopwatch.Start();
             _timer = new Timer(_ => OnPropertyChanged(nameof(ElapsedTime)), null, 0, 100);
+        }
+
+        private void OnLogReceived(object? sender, LogEventArgs e)
+        {
+            if (e.CorrelationId != CorrelationId) return;
+
+            Application.Current.Dispatcher.Invoke(() => GeneralLog.Add(e.Message));
         }
 
         public Guid CorrelationId { get; set; }
@@ -124,7 +113,7 @@ namespace Janus.ViewModels
 
         public void Dispose()
         {
-            _logEventSubscription.Dispose();
+            ObservableLogger.LogReceived -= OnLogReceived;
             _cancellationTokenSource.Cancel();
             _timer.Dispose();
         }
