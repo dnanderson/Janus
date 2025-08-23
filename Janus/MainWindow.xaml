@@ -17,7 +17,7 @@
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="{Binding Header}" />
                         <Button Content="r"
-                                Command="{Binding CloseCommand}"
+                                Command="{Binding CloseTestCommand}"
                                 Visibility="{Binding IsClosable, Converter={StaticResource BooleanToVisibilityConverter}}"
                                 Margin="5,0,0,0"
                                 FontFamily="Marlett"
