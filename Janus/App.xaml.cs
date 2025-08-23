@@ -4,7 +4,7 @@ using Janus.ViewModels;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+using Serilog;
 using System.Windows;
 
 namespace Janus
@@ -16,6 +16,12 @@ namespace Janus
         public App()
         {
             AppHost = Host.CreateDefaultBuilder()
+                .UseSerilog((hostContext, services, loggerConfiguration) =>
+                {
+                    loggerConfiguration
+                        .ReadFrom.Configuration(hostContext.Configuration)
+                        .WriteTo.Observable(services.GetRequiredService<SerilogObserverService>());
+                })
                 .ConfigureServices((hostContext, services) =>
                 {
                     ConfigureServices(services, hostContext.Configuration);
@@ -39,12 +45,7 @@ namespace Janus
             services.Configure<SerialServiceSettings>(configuration.GetSection("SerialService"));
             services.Configure<HardwareSettings>(configuration);
 
-            services.AddLogging(builder =>
-            {
-                builder.AddConsole();
-                builder.AddDebug();
-                builder.AddProvider(new ObservableLoggerProvider());
-            });
+            services.AddSingleton<SerilogObserverService>();
 
             // Register Services
             var serialServiceSettings = configuration.GetSection("SerialService").Get<SerialServiceSettings>();
