@@ -1,8 +1,11 @@
+using Janus.Models.Configuration;
+using Janus.ViewModels;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Janus.ViewModels;
 
 namespace Janus.Services
 {
@@ -10,15 +13,25 @@ namespace Janus.Services
     {
         private readonly IDaqService _daqService;
         private readonly ISmuService _smuService;
-        private readonly INi845xService _ni845xService;
+        private readonly ISerialService _serialService;
         private readonly ILogger<TestRunnerService> _logger;
+        private readonly HardwareSettings _hardwareSettings;
+        private readonly DatabaseSettings _databaseSettings;
 
-        public TestRunnerService(IDaqService daqService, ISmuService smuService, INi845xService ni845xService, ILogger<TestRunnerService> logger)
+        public TestRunnerService(
+            IDaqService daqService,
+            ISmuService smuService,
+            ISerialService serialService,
+            IOptions<HardwareSettings> hardwareSettings,
+            IOptions<DatabaseSettings> databaseSettings,
+            ILogger<TestRunnerService> logger)
         {
             _daqService = daqService;
             _smuService = smuService;
-            _ni845xService = ni845xService;
+            _serialService = serialService;
             _logger = logger;
+            _hardwareSettings = hardwareSettings.Value;
+            _databaseSettings = databaseSettings.Value;
         }
 
         public async Task RunTestAsync(UutViewModel uutViewModel, CancellationToken cancellationToken)
@@ -26,6 +39,19 @@ namespace Janus.Services
             try
             {
                 _logger.LogInformation("Starting test for UUT {SerialNumber}", uutViewModel.SerialNumber);
+                _logger.LogInformation("Database URL: {DatabaseUrl}", _databaseSettings.Url);
+
+                var drawerSettings = _hardwareSettings.Drawers.FirstOrDefault(d => d.DrawerId == uutViewModel.Drawer);
+                if (drawerSettings == null)
+                {
+                    _logger.LogError("No hardware configuration found for drawer {DrawerId}", uutViewModel.Drawer);
+                    uutViewModel.Status = "Error: No hardware configuration";
+                    return;
+                }
+
+                _logger.LogInformation("Using hardware configuration for drawer {DrawerId}: SMU='{SmuResourceName}', DAQ='{DaqResourceName}', Serial='{SerialPort}'",
+                    drawerSettings.DrawerId, drawerSettings.SmuResourceName, drawerSettings.DaqResourceName, drawerSettings.SerialDevice.Port);
+
                 await Task.Delay(500, cancellationToken); // Simulate work
                 _logger.LogInformation("Hardware configuration complete for UUT {SerialNumber}", uutViewModel.SerialNumber);
 
@@ -37,7 +63,7 @@ namespace Janus.Services
 
                     var message = $"READ_STATUS";
                     _logger.LogInformation("SerialLog: > {Message}", message);
-                    var response = _ni845xService.SendReceive(message);
+                    var response = _serialService.SendReceive(message);
                     _logger.LogInformation("SerialLog: < {Response}", response);
 
                     _logger.LogInformation("Poll successful for UUT {SerialNumber}. V={Voltage:F2}, T={Temperature:F1}, I={Current:F3}",
